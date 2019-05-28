@@ -1,0 +1,122 @@
+/**
+ * @file   supervisor.S
+ *
+ * @brief  Assembly implementation to setup interrupts and enter/exit user mode
+ *
+ * @date   10/12/17
+ * @author David Yu <davidyu@andrew.cmu.edu>
+ */
+
+.section ".text"
+
+/**
+ * vector table that is loaded by install_vector_table to address 0x0
+ */
+interrupt_vector_table:
+  // ARM core does the following on interrupt:
+  // 1) save cpsr into spsr
+  // 2) set mode bits in current cpsr
+  // 3) disable further interrupts of lower/same priority
+  // 4) store return address in lr
+  // 5) set pc to correct vector table entry below
+  ldr pc, _reset_asm_handler                 // priority: 1st
+  ldr pc, _undefined_instruction_asm_handler // priority: 6th
+  ldr pc, _swi_asm_handler                   // priority: 6th
+  ldr pc, _prefetch_abort_asm_handler        // priority: 5th
+  ldr pc, _data_abort_asm_handler            // priority: 2nd
+  ldr pc, _reset_asm_handler                 // priority: undefined
+  ldr pc, _irq_asm_handler                   // priority: 4th
+  ldr pc, _fiq_asm_handler                   // priority: 3rd
+
+/**
+ * SOFT vector table that is loaded by install_vector_table ABOVE
+ * interrupt_vector_table
+ */
+// to make sure the addresses are aligned this must follow the
+// actual vector table above!
+_reset_asm_handler:                 .word reset_asm_handler
+_undefined_instruction_asm_handler: .word undefined_instruction_asm_handler
+_swi_asm_handler:                   .word swi_asm_handler
+_prefetch_abort_asm_handler:        .word prefetch_abort_asm_handler
+_data_abort_asm_handler:            .word data_abort_asm_handler
+_irq_asm_handler:                   .word irq_asm_handler
+_fiq_asm_handler:                   .word fiq_asm_handler
+
+/**
+ * called to install the vector table at address 0x0
+ */
+.global install_interrupt_table
+install_interrupt_table:
+    
+    ldr r8, =interrupt_vector_table
+    mov r9, #0
+    ldmia r8!, {r0-r7} //load the interupt vector table instructions
+    stmia r9!, {r0-r7} //store them at 0x0
+    ldmia r8!, {r0-r6} //load the soft vector table
+    stmia r9!, {r0-r6} //store them
+
+    mov pc, lr
+    
+
+
+/************************************************************/
+/* Assembly handlers for interrupts in the vector table     */
+/************************************************************/
+
+swi_asm_handler:
+    
+    sub     sp, sp, #4          
+    stmfd   sp!, {r0-r12, lr}
+    mrs     r2, spsr            
+    str     r2, [sp, #14*4]     
+    mov     r1, sp              
+    ldr     r0, [lr, #-4]       
+    bic     r0, r0, #0xff000000 
+    bl      swi_c_handler       
+    ldr     r2, [sp, #14*4]     
+    msr     spsr, r2            
+    add     sp, sp, #4
+    ldmfd   sp!, {r1-r12, lr}   
+    add     sp, sp, #4          
+    movs    pc, lr              
+
+irq_asm_handler:
+    ldr     sp, = __irq_stack_top
+    
+    stmfd   sp!, {r0-r12, lr}
+    bl      irq_c_handler
+    ldmfd   sp!, {r0-r12, lr}
+    subs    pc, lr, #4
+
+
+
+reset_asm_handler:
+  b _start // just reset the kernel
+
+
+/************************************************************
+ * If you fall into one of these handlers something bad is
+ * happening. bkpt will drop back into gdb so you can debug.
+ ************************************************************/
+undefined_instruction_asm_handler:
+  bkpt
+
+prefetch_abort_asm_handler:
+  bkpt
+
+data_abort_asm_handler:
+  bkpt
+
+fiq_asm_handler:
+  bkpt
+
+
+/************************************************************/
+/* Initializes cpsr for user mode and jumps to user program */
+/************************************************************/
+.global enter_user_mode
+enter_user_mode:
+    stmfd sp!, {r0-r12, lr}
+    cpsie i, #0x10
+    ldr sp, =__user_stack_top
+    ldr pc, =__user_program 

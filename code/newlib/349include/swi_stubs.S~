@@ -1,0 +1,101 @@
+/**
+ * @file   swi_stubs.S
+ *
+ * @brief  Stub functions for newlib and 349libc syscalls
+ *
+ * @date   10/16/17
+ * @author David Yu <davidyu@andrew.cmu.edu>
+ */
+
+.section ".text"
+
+#include <swi_num.h>
+
+.global _sbrk
+_sbrk:
+	SWI SWI_SBRK
+	mov pc, lr
+
+
+.global _write
+_write:
+    SWI SWI_WRITE
+    mov pc, lr
+
+.global _close
+_close:
+    SWI SWI_CLOSE
+    mov pc,lr
+
+
+.global _fstat
+_fstat:
+    SWI SWI_FSTAT
+    mov pc,lr
+
+
+.global _isatty
+_isatty:
+    SWI SWI_ISATTY
+    mov pc, lr
+
+
+.global _lseek
+_lseek:
+    SWI SWI_LSEEK
+    mov pc, lr
+
+
+.global _read
+_read:
+    SWI SWI_READ
+    mov pc, lr
+
+
+.global _exit
+_exit:
+    SWI SWI_EXIT
+    mov pc, lr
+
+
+.global sample_adc_start
+sample_adc_start:
+    SWI SWI_ADC_START
+    mov pc,lr
+
+
+.global sample_adc_stop
+sample_adc_stop:
+    SWI SWI_ADC_STOP
+    mov pc,lr
+
+.global thread_init
+thread_init:
+
+
+.global thread_create
+thread_create:
+
+
+.global mutex_init
+mutex_init:
+
+
+.global mutex_lock
+mutex_lock:
+
+
+.global mutex_unlock
+mutex_unlock:
+
+
+.global wait_until_next_period
+wait_until_next_period:
+
+
+.global get_time
+get_time:
+
+
+.global scheduler_start
+scheduler_start:
